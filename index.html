@@ -54,13 +54,14 @@
 <body>
 
 <!-- 문의 히스토리 버튼 (관리자 전용) -->
-<button id="historyButton" onclick="showHistoryPage()">문의 히스토리</button>
+<button onclick="goBackToChat()" style="position: fixed; top: 10px; left: 10px; background: black; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold;">← Back</button>
+<button id="historyButton" onclick="showHistoryPage()" style="position: fixed; top: 10px; left: 100px; background: #FAAB23; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; display: none;">History</button>
 
 <!-- 로그인 화면 중앙 정렬 -->
 <div class="container" id="loginPage" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh;">
   <h2>단비 상담 챗봇</h2>
   <input type="text" id="userId" placeholder="ID를 입력하세요" style="margin-bottom:10px; padding:8px; border:1px solid #ccc; border-radius:6px;" />
-  <button onclick="login()" style="background:#98DFFF; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">로그인</button>
+  <button onclick="login()" style="background:#1478FF; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">로그인</button>
   <div class="error" id="errorMsg" style="color:red; margin-top:10px;"></div>
 </div>
 
@@ -71,20 +72,20 @@
     <div class="message bot">무엇을 도와드릴까요?</div>
   </div>
   <div class="input-group" style="display:flex; gap:10px; align-items:center; margin-top:20px;">
-    <input type="text" id="userInput" placeholder="질문을 입력하세요" style="flex-grow:1; padding:10px; border:1px solid #ccc; border-radius:6px;" />
+    <textarea id="userInput" placeholder="질문을 입력하세요" style="flex-grow:1; padding:10px; border:1px solid #ccc; border-radius:6px; resize:none; height:60px;"></textarea>
     <button onclick="sendMessage()" style="background:#98DFFF; color:white; border:none; padding:10px 16px; border-radius:6px; white-space:nowrap;">전송</button>
   </div>
 </div>
 
 <!-- 문의 히스토리 페이지 -->
 <div id="historyPage">
-  <h2>문의 히스토리</h2>
   <table>
     <thead>
-      <tr><th>번호</th><th>질문</th><th>답변</th></tr>
+      <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>번호</th><th>질문</th><th>답변</th></tr>
     </thead>
     <tbody id="historyTableBody"></tbody>
   </table>
+  <button onclick="downloadSelectedExcel()" style="margin-top:10px; background:#98DFFF; color:white; border:none; padding:10px 16px; border-radius:6px;">선택 항목 엑셀 다운로드</button>
 </div>
 
 <!-- 로그아웃 버튼 -->
@@ -93,6 +94,33 @@
 </div>
 
 <script>
+function toggleAll(master) {
+  const checkboxes = document.querySelectorAll('.history-checkbox');
+  checkboxes.forEach(cb => cb.checked = master.checked);
+}
+
+function downloadSelectedExcel() {
+  const userId = localStorage.getItem('loggedInUser');
+  const questions = JSON.parse(localStorage.getItem('savedQuestions_' + userId)) || [];
+  const answers = JSON.parse(localStorage.getItem('savedAnswers_' + userId)) || [];
+
+  let csv = "번호,질문,답변\n";
+  document.querySelectorAll('.history-checkbox:checked').forEach(cb => {
+    const i = parseInt(cb.getAttribute('data-index'));
+    const q = questions[i] || "";
+    const a = answers[i] || "";
+    csv += `${i + 1},"${q.replace(/"/g, '""')}","${a.replace(/"/g, '""')}"\n`;
+  });
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement("a");
+  link.setAttribute("href", URL.createObjectURL(blob));
+  link.setAttribute("download", "문의히스토리_선택항목.csv");
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
 function showHistoryPage() {
   document.getElementById('loginPage').style.display = 'none';
   document.getElementById('chatPage').style.display = 'none';
@@ -106,7 +134,7 @@ function showHistoryPage() {
   table.innerHTML = "";
   questions.forEach((q, i) => {
     const row = document.createElement('tr');
-    row.innerHTML = `<td>${i + 1}</td><td>${q}</td><td>${answers[i] || ""}</td>`;
+    row.innerHTML = `<td><input type="checkbox" class="history-checkbox" data-index="${i}"></td><td>${i + 1}</td><td>${q}</td><td>${answers[i] || ""}</td>`;
     table.appendChild(row);
   });
 }
@@ -114,7 +142,6 @@ function showHistoryPage() {
 function login() {
   const userId = document.getElementById('userId').value.trim().toLowerCase();
   const errorMsg = document.getElementById('errorMsg');
-
   const allowedIds = ["danbi", "testuser1", "helper123"];
 
   if (allowedIds.includes(userId)) {
@@ -129,6 +156,20 @@ function login() {
     errorMsg.textContent = "등록되지 않은 ID입니다.";
   }
 }
+
+document.getElementById('userId').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    login();
+  }
+});
+
+document.getElementById('userInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
 
 function logout() {
   localStorage.removeItem('loggedInUser');
@@ -154,7 +195,11 @@ function sendMessage() {
 
   input.value = '';
 }
-</script>
 
+function goBackToChat() {
+  document.getElementById('historyPage').style.display = 'none';
+  document.getElementById('chatPage').style.display = 'block';
+}
+</script>
 </body>
 </html>

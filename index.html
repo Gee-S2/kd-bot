@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { font-family: sans-serif; }
-    #loginPage, #chatPage {
+    #loginPage, #chatPage, #historyPage {
       display: none;
     }
     .messages {
@@ -53,24 +53,16 @@ const knowledge = [
 ];
 
 async function fetchEmbedding(text, apiKey) {
-  try {
-    const res = await fetch("https://api.openai.com/v1/embeddings", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ model: "text-embedding-3-small", input: text })
-    });
-    const data = await res.json();
-    if (!data.data || !data.data[0]) {
-      throw new Error("임베딩 결과 없음");
-    }
-    return data.data[0].embedding;
-  } catch (err) {
-    alert("❌ 임베딩 생성 중 오류 발생: " + err.message);
-    return null;
-  }
+  const res = await fetch("https://api.openai.com/v1/embeddings", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ model: "text-embedding-3-small", input: text })
+  });
+  const data = await res.json();
+  return data.data[0].embedding;
 }
 
 function cosineSimilarity(a, b) {
@@ -107,12 +99,9 @@ async function sendMessage() {
   if (!apiKey) return;
 
   const qEmbed = await fetchEmbedding(question, apiKey);
-  if (!qEmbed) return;
-
   for (let item of knowledge) {
     if (!item.embedding) {
       item.embedding = await fetchEmbedding(item.text, apiKey);
-      if (!item.embedding) return;
     }
   }
 

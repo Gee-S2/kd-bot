@@ -7,52 +7,19 @@
 </head>
 <body>
 
-<!-- 로그인 화면 -->
-<div class="container" id="loginPage">
+<!-- 로그인 화면 중앙 정렬 -->
+<div class="container" id="loginPage" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh;">
   <h2>단비 상담 챗봇</h2>
-  <input type="text" id="userId" placeholder="ID를 입력하세요" />
-  <button onclick="login()">로그인</button>
+  <input type="text" id="userId" placeholder="ID를 입력하세요" style="margin-bottom:10px; padding:8px; border:1px solid #ccc; border-radius:6px;" />
+  <button onclick="login()" style="padding:8px 16px;">로그인</button>
   <div class="error" id="errorMsg" style="color:red; margin-top:10px;"></div>
 </div>
 
-<!-- 채팅 화면 -->
-<div class="container" id="chatPage" style="display:none">
-  <h2>안녕하세요, <span id="userName"></span>님!</h2>
-  <div class="messages" id="messages">
-    <div>무엇을 도와드릴까요?</div>
-  </div>
-  <!-- 전송 버튼 포함한 채팅 입력 영역 -->
-  <div class="input-group" style="display:flex; gap:10px; align-items:center; margin-top:20px;">
-    <input type="text" id="userInput" placeholder="질문을 입력하세요" style="flex-grow:1; padding:10px; border:1px solid #ccc; border-radius:6px;" />
-    <button onclick="sendMessage()" style="background:#98DFFF; color:white; border:none; padding:10px 16px; border-radius:6px; white-space:nowrap;">전송</button>
-  </div>
+<!-- 전송 버튼 포함한 채팅 입력 영역 -->
+<div class="input-group" style="display:flex; gap:10px; align-items:center; margin-top:20px;">
+  <input type="text" id="userInput" placeholder="질문을 입력하세요" style="flex-grow:1; padding:10px; border:1px solid #ccc; border-radius:6px;" />
+  <button onclick="sendMessage()" style="background:#98DFFF; color:white; border:none; padding:10px 16px; border-radius:6px; white-space:nowrap;">전송</button>
 </div>
-
-<!-- 로그아웃 버튼 -->
-<div style="position: fixed; top: 10px; right: 10px;">
-  <button onclick="logout()" style="background:#1478FF; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">로그아웃</button>
-</div>
-
-<!-- 관리자 전용 메뉴: 문의 히스토리 -->
-<div class="container" id="adminPage" style="display:none">
-  <h2>문의 히스토리</h2>
-  <table style="width:100%; border-collapse:collapse;">
-    <thead>
-      <tr style="background:#f0f0f0">
-        <th style="padding:8px; border:1px solid #ddd;"><input type="checkbox" onclick="toggleAll(this)"></th>
-        <th style="padding:8px; border:1px solid #ddd;">번호</th>
-        <th style="padding:8px; border:1px solid #ddd; text-align:left;">질문 내용</th>
-      </tr>
-    </thead>
-    <tbody id="historyList"></tbody>
-  </table>
-  <button onclick="downloadSelectedExcel()" style="margin-top:10px; background:#98DFFF; color:white; border:none; padding:10px 16px; border-radius:6px;">선택 항목 엑셀 다운로드</button>
-  <div id="answerDisplay" style="margin-top:20px; font-style: italic; color: #555;"></div>
-</div>
-
-<script>
-// JS 부분은 요약을 위해 생략 — 실제 배포 파일에는 포함됩니다.
-</script>
 
 </body>
 </html>

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>단비 챗봇</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { font-family: sans-serif; }
     #loginPage, #chatPage {
@@ -14,10 +14,6 @@
       flex-direction: column;
       gap: 10px;
       padding: 20px;
-      height: 300px;
-      overflow-y: auto;
-      border: 1px solid #ccc;
-      border-radius: 10px;
     }
     .message {
       max-width: 60%;
@@ -34,7 +30,7 @@
 
 <div id="loginPage" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh;">
   <h2>단비 상담 챗봇</h2>
-  <input type="text" id="userId" placeholder="ID를 입력하세요" style="padding:8px; margin-bottom:10px;" />
+  <input type="text" id="userId" placeholder="ID를 입력하세요" style="padding:8px; margin-bottom:10px;">
   <button onclick="login()">로그인</button>
   <div id="errorMsg" style="color:red;"></div>
 </div>
@@ -44,7 +40,7 @@
   <div class="messages" id="messages">
     <div class="message bot">무엇을 도와드릴까요?</div>
   </div>
-  <textarea id="userInput" style="width:100%; height: 60px;"></textarea>
+  <textarea id="userInput" style="width: 100%; height: 60px;"></textarea>
   <button onclick="sendMessage()">전송</button>
 </div>
 
@@ -64,7 +60,7 @@ async function fetchEmbedding(text, apiKey) {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ model: "text-embedding-ada-002", input: text })
+      body: JSON.stringify({ model: "text-embedding-3-small", input: text })
     });
     const data = await res.json();
     if (!data.data || !data.data[0]) {
@@ -72,7 +68,7 @@ async function fetchEmbedding(text, apiKey) {
     }
     return data.data[0].embedding;
   } catch (err) {
-    alert("❌ 임베딩 생성 중 오류: " + err.message);
+    alert("❌ 임베딩 생성 중 오류 발생: " + err.message);
     return null;
   }
 }
@@ -136,7 +132,7 @@ async function sendMessage() {
   messages.appendChild(botBubble);
 
   input.value = '';
-  messages.lastElementChild.scrollIntoView({ behavior: "smooth" });
+  messages.lastElementChild.scrollIntoView({ behavior: 'smooth' });
 }
 
 window.onload = () => {

@@ -1,47 +1,33 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>단비 상담 챗봇</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #f2f2f2; margin: 0; padding: 0; }
-    .container { max-width: 600px; margin: 40px auto; padding: 20px; background: #fff; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-    h2 { text-align: center; }
-    input[type="text"] { width: 100%; padding: 10px; margin: 10px 0; border-radius: 6px; border: 1px solid #ccc; }
-    button { padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; }
-    .messages { margin: 20px 0; border: 1px solid #ddd; padding: 10px; border-radius: 6px; background: #fafafa; min-height: 100px; }
-    .input-group { display: flex; gap: 10px; }
-    .input-group input { flex-grow: 1; }
-    #adminPage { margin-top: 30px; }
-    ul { padding-left: 20px; }
-    li { margin: 5px 0; }
-  </style>
+  <meta charset="UTF-8">
+  <title>단비 챗봇</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
 
-<div class="container" id="loginPage">
-  <h2>단비 상담 챗봇</h2>
-  <input type="text" id="userId" placeholder="ID를 입력하세요" />
-  <button onclick="login()">로그인</button>
-  <div class="error" id="errorMsg" style="color:red; margin-top:10px;"></div>
+// 전체 HTML 구조는 그대로 유지하고, 아래에 관리자 전용 메뉴 추가
+
+<!-- 로그아웃 버튼 -->
+<div style="position: fixed; top: 10px; right: 10px;">
+  <button onclick="logout()" style="background:#1478FF; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">로그아웃</button>
 </div>
 
-<div class="container" id="chatPage" style="display:none">
-  <h2>안녕하세요, <span id="userName"></span>님!</h2>
-  <div class="messages" id="messages">
-    <div>무엇을 도와드릴까요?</div>
-  </div>
-  <div class="input-group">
-    <input type="text" id="userInput" placeholder="질문을 입력하세요" />
-    <button onclick="sendMessage()">전송</button>
-  </div>
-</div>
-
+<!-- 관리자 전용 메뉴: 문의 히스토리 -->
 <div class="container" id="adminPage" style="display:none">
   <h2>문의 히스토리</h2>
-  <ul id="historyList"></ul>
-  <button onclick="downloadExcel()">엑셀로 다운로드</button>
+  <table style="width:100%; border-collapse:collapse;">
+    <thead>
+      <tr style="background:#f0f0f0">
+        <th style="padding:8px; border:1px solid #ddd;"><input type="checkbox" onclick="toggleAll(this)"></th>
+        <th style="padding:8px; border:1px solid #ddd;">번호</th>
+        <th style="padding:8px; border:1px solid #ddd; text-align:left;">질문 내용</th>
+      </tr>
+    </thead>
+    <tbody id="historyList"></tbody>
+  </table>
+  <button onclick="downloadSelectedExcel()" style="margin-top:10px; background:#98DFFF; color:white; border:none; padding:10px 16px; border-radius:6px;">선택 항목 엑셀 다운로드</button>
   <div id="answerDisplay" style="margin-top:20px; font-style: italic; color: #555;"></div>
 </div>
 
@@ -49,6 +35,16 @@
   const allowedIds = ["danbi", "testuser1", "helper123"];
   let savedQuestions = [];
   let savedAnswers = [];
+
+  function logout() {
+    localStorage.removeItem('loggedInUser');
+    location.reload();
+  }
+
+  function toggleAll(master) {
+    const checkboxes = document.querySelectorAll('.history-checkbox');
+    checkboxes.forEach(cb => cb.checked = master.checked);
+  }
 
   function login() {
     const userId = document.getElementById('userId').value.trim().toLowerCase();
@@ -87,6 +83,15 @@
         messages.appendChild(res);
       }
     });
+
+    const sendBtn = document.querySelector('button[onclick="sendMessage()"]');
+    if (sendBtn) {
+      sendBtn.style.background = '#98DFFF';
+      sendBtn.style.color = 'white';
+      sendBtn.style.border = 'none';
+      sendBtn.style.padding = '10px 16px';
+      sendBtn.style.borderRadius = '6px';
+    }
   }
 
   function sendMessage() {
@@ -119,28 +124,36 @@
     const list = document.getElementById('historyList');
     list.innerHTML = "";
     savedQuestions.forEach((q, i) => {
-      const item = document.createElement('li');
-      item.textContent = `${i + 1}. ${q}`;
-      item.style.cursor = 'pointer';
-      item.onclick = () => {
-        const answerDisplay = document.getElementById('answerDisplay');
-        const answer = savedAnswers[i] || "답변이 등록되지 않았습니다.";
-        answerDisplay.textContent = `답변: ${answer}`;
-      };
-      list.appendChild(item);
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td style="padding:8px; border:1px solid #ddd;"><input type="checkbox" class="history-checkbox" data-index="${i}"></td>
+        <td style="padding:8px; border:1px solid #ddd; text-align:center;">${i + 1}</td>
+        <td style="padding:8px; border:1px solid #ddd; cursor:pointer; text-align:left;" onclick="showAnswer(${i})">${q}</td>
+      `;
+      list.appendChild(row);
     });
   }
 
-  function downloadExcel() {
-    let csv = "질문 번호,질문 내용,답변 내용\n";
-    savedQuestions.forEach((q, i) => {
+  function showAnswer(i) {
+    const answerDisplay = document.getElementById('answerDisplay');
+    const answer = savedAnswers[i] || "답변이 등록되지 않았습니다.";
+    answerDisplay.textContent = `답변: ${answer}`;
+  }
+
+  function downloadSelectedExcel() {
+    let csv = "질문 번호,질문 내용,답변 내용
+";
+    document.querySelectorAll('.history-checkbox:checked').forEach(cb => {
+      const i = parseInt(cb.getAttribute('data-index'));
+      const q = savedQuestions[i] || "";
       const a = savedAnswers[i] || "";
-      csv += `${i + 1},"${q.replace(/"/g, '""')}","${a.replace(/"/g, '""')}"\n`;
+      csv += `${i + 1},"${q.replace(/"/g, '""')}","${a.replace(/"/g, '""')}"
+`;
     });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.setAttribute("href", URL.createObjectURL(blob));
-    link.setAttribute("download", "문의히스토리.csv");
+    link.setAttribute("download", "문의히스토리_선택항목.csv");
     link.style.display = 'none';
     document.body.appendChild(link);
     link.click();

@@ -67,18 +67,19 @@
 
 <!-- 채팅 화면 -->
 <div class="container" id="chatPage" style="display:none">
-  <h2>안녕하세요, <span id="userName"></span>님!</h2>
+  <h2 style="text-align: center;">안녕하세요, <span id="userName"></span>님!</h2>
   <div class="messages" id="messages">
     <div class="message bot">무엇을 도와드릴까요?</div>
   </div>
   <div class="input-group" style="display:flex; gap:10px; align-items:center; margin-top:20px;">
-    <textarea id="userInput" placeholder="질문을 입력하세요" style="flex-grow:1; padding:10px; border:1px solid #ccc; border-radius:6px; resize:none; height:60px;"></textarea>
+    <textarea id="userInput" style="font-family: inherit; flex-grow:1; padding:10px; border:1px solid #ccc; border-radius:6px; resize:none; height:60px;"></textarea>
     <button onclick="sendMessage()" style="background:#98DFFF; color:white; border:none; padding:10px 16px; border-radius:6px; white-space:nowrap;">전송</button>
   </div>
 </div>
 
 <!-- 문의 히스토리 페이지 -->
 <div id="historyPage">
+  <button onclick="goBackToChat()" style="margin-bottom: 10px; background:#FAAB23; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">← 뒤로가기</button>
   <table>
     <thead>
       <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>번호</th><th>질문</th><th>답변</th></tr>
@@ -184,13 +185,13 @@ function sendMessage() {
 
   const userBubble = document.createElement('div');
   userBubble.className = 'message user';
-  userBubble.textContent = question;
+  userBubble.innerHTML = question.replace(/\n/g, '<br>');
   messages.appendChild(userBubble);
 
   const answerText = '이 질문에 대한 답변은 준비 중입니다.';
   const botBubble = document.createElement('div');
   botBubble.className = 'message bot';
-  botBubble.textContent = answerText;
+  botBubble.innerHTML = answerText.replace(/\n/g, '<br>');
   messages.appendChild(botBubble);
 
   input.value = '';

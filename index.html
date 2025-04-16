@@ -4,14 +4,63 @@
   <meta charset="UTF-8">
   <title>단비 챗봇</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    #historyButton {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: #FAAB23;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      display: none;
+    }
+    #historyPage {
+      display: none;
+      padding: 20px;
+    }
+    #historyPage table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    #historyPage th, #historyPage td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
+    #historyPage th {
+      background-color: #f4f4f4;
+    }
+    .messages {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 20px;
+    }
+    .message {
+      max-width: 60%;
+      padding: 10px 15px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    .user { background-color: #E2F0FC; align-self: flex-end; }
+    .bot { background-color: #8AB8F2; align-self: flex-start; }
+  </style>
 </head>
 <body>
+
+<!-- 문의 히스토리 버튼 (관리자 전용) -->
+<button id="historyButton" onclick="showHistoryPage()">문의 히스토리</button>
 
 <!-- 로그인 화면 중앙 정렬 -->
 <div class="container" id="loginPage" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh;">
   <h2>단비 상담 챗봇</h2>
   <input type="text" id="userId" placeholder="ID를 입력하세요" style="margin-bottom:10px; padding:8px; border:1px solid #ccc; border-radius:6px;" />
-  <button onclick="login()" style="padding:8px 16px;">로그인</button>
+  <button onclick="login()" style="background:#98DFFF; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">로그인</button>
   <div class="error" id="errorMsg" style="color:red; margin-top:10px;"></div>
 </div>
 
@@ -19,13 +68,23 @@
 <div class="container" id="chatPage" style="display:none">
   <h2>안녕하세요, <span id="userName"></span>님!</h2>
   <div class="messages" id="messages">
-    <div>무엇을 도와드릴까요?</div>
+    <div class="message bot">무엇을 도와드릴까요?</div>
   </div>
-  <!-- 전송 버튼 포함한 채팅 입력 영역 -->
   <div class="input-group" style="display:flex; gap:10px; align-items:center; margin-top:20px;">
     <input type="text" id="userInput" placeholder="질문을 입력하세요" style="flex-grow:1; padding:10px; border:1px solid #ccc; border-radius:6px;" />
     <button onclick="sendMessage()" style="background:#98DFFF; color:white; border:none; padding:10px 16px; border-radius:6px; white-space:nowrap;">전송</button>
   </div>
+</div>
+
+<!-- 문의 히스토리 페이지 -->
+<div id="historyPage">
+  <h2>문의 히스토리</h2>
+  <table>
+    <thead>
+      <tr><th>번호</th><th>질문</th><th>답변</th></tr>
+    </thead>
+    <tbody id="historyTableBody"></tbody>
+  </table>
 </div>
 
 <!-- 로그아웃 버튼 -->
@@ -33,153 +92,67 @@
   <button onclick="logout()" style="background:#1478FF; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">로그아웃</button>
 </div>
 
-<!-- 관리자 전용 메뉴: 문의 히스토리 -->
-<div class="container" id="adminPage" style="display:none">
-  <h2>문의 히스토리</h2>
-  <table style="width:100%; border-collapse:collapse;">
-    <thead>
-      <tr style="background:#f0f0f0">
-        <th style="padding:8px; border:1px solid #ddd;"><input type="checkbox" onclick="toggleAll(this)"></th>
-        <th style="padding:8px; border:1px solid #ddd;">번호</th>
-        <th style="padding:8px; border:1px solid #ddd; text-align:left;">질문 내용</th>
-      </tr>
-    </thead>
-    <tbody id="historyList"></tbody>
-  </table>
-  <button onclick="downloadSelectedExcel()" style="margin-top:10px; background:#98DFFF; color:white; border:none; padding:10px 16px; border-radius:6px;">선택 항목 엑셀 다운로드</button>
-  <div id="answerDisplay" style="margin-top:20px; font-style: italic; color: #555;"></div>
-</div>
-
 <script>
-const allowedIds = ["danbi", "testuser1", "helper123"];
-let savedQuestions = [];
-let savedAnswers = [];
+function showHistoryPage() {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('chatPage').style.display = 'none';
+  document.getElementById('historyPage').style.display = 'block';
 
-function logout() {
-  localStorage.removeItem('loggedInUser');
-  location.reload();
-}
+  const userId = localStorage.getItem('loggedInUser');
+  const questions = JSON.parse(localStorage.getItem('savedQuestions_' + userId)) || [];
+  const answers = JSON.parse(localStorage.getItem('savedAnswers_' + userId)) || [];
 
-function toggleAll(master) {
-  const checkboxes = document.querySelectorAll('.history-checkbox');
-  checkboxes.forEach(cb => cb.checked = master.checked);
+  const table = document.getElementById('historyTableBody');
+  table.innerHTML = "";
+  questions.forEach((q, i) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `<td>${i + 1}</td><td>${q}</td><td>${answers[i] || ""}</td>`;
+    table.appendChild(row);
+  });
 }
 
 function login() {
   const userId = document.getElementById('userId').value.trim().toLowerCase();
   const errorMsg = document.getElementById('errorMsg');
 
+  const allowedIds = ["danbi", "testuser1", "helper123"];
+
   if (allowedIds.includes(userId)) {
     localStorage.setItem('loggedInUser', userId);
-    savedQuestions = JSON.parse(localStorage.getItem('savedQuestions_' + userId)) || [];
-    savedAnswers = JSON.parse(localStorage.getItem('savedAnswers_' + userId)) || [];
-    showChatPage(userId);
-
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('chatPage').style.display = 'block';
+    document.getElementById('userName').textContent = userId;
     if (userId === "danbi") {
-      document.getElementById('adminPage').style.display = 'block';
-      renderHistory(userId);
+      document.getElementById('historyButton').style.display = 'block';
     }
   } else {
     errorMsg.textContent = "등록되지 않은 ID입니다.";
   }
 }
 
-function showChatPage(userId) {
-  document.getElementById('loginPage').style.display = 'none';
-  document.getElementById('chatPage').style.display = 'block';
-  document.getElementById('userName').textContent = userId;
-
-  const messages = document.getElementById('messages');
-  savedQuestions.forEach((q, i) => {
-    const msg = document.createElement('div');
-    msg.textContent = "사용자: " + q;
-    messages.appendChild(msg);
-    if (savedAnswers[i]) {
-      const res = document.createElement('div');
-      res.textContent = "답변: " + savedAnswers[i];
-      res.style.marginBottom = '10px';
-      res.style.color = '#444';
-      messages.appendChild(res);
-    }
-  });
+function logout() {
+  localStorage.removeItem('loggedInUser');
+  location.reload();
 }
 
 function sendMessage() {
   const input = document.getElementById('userInput');
   const messages = document.getElementById('messages');
-  const userId = localStorage.getItem('loggedInUser');
-  if (input.value.trim()) {
-    const question = input.value.trim();
-    const message = document.createElement('div');
-    message.textContent = "사용자: " + question;
-    messages.appendChild(message);
+  const question = input.value.trim();
+  if (!question) return;
 
-    const mockAnswer = "이 질문에 대한 답변은 준비 중입니다.";
-    const answer = document.createElement('div');
-    answer.textContent = "답변: " + mockAnswer;
-    answer.style.marginBottom = '10px';
-    answer.style.color = '#444';
-    messages.appendChild(answer);
+  const userBubble = document.createElement('div');
+  userBubble.className = 'message user';
+  userBubble.textContent = question;
+  messages.appendChild(userBubble);
 
-    savedQuestions.push(question);
-    savedAnswers.push(mockAnswer);
-    localStorage.setItem('savedQuestions_' + userId, JSON.stringify(savedQuestions));
-    localStorage.setItem('savedAnswers_' + userId, JSON.stringify(savedAnswers));
-    input.value = "";
-    if (userId === "danbi") renderHistory(userId);
-  }
-}
+  const answerText = '이 질문에 대한 답변은 준비 중입니다.';
+  const botBubble = document.createElement('div');
+  botBubble.className = 'message bot';
+  botBubble.textContent = answerText;
+  messages.appendChild(botBubble);
 
-function renderHistory(userId) {
-  const list = document.getElementById('historyList');
-  list.innerHTML = "";
-  savedQuestions.forEach((q, i) => {
-    const row = document.createElement('tr');
-    row.innerHTML = `
-      <td style="padding:8px; border:1px solid #ddd;"><input type="checkbox" class="history-checkbox" data-index="${i}"></td>
-      <td style="padding:8px; border:1px solid #ddd; text-align:center;">${i + 1}</td>
-      <td style="padding:8px; border:1px solid #ddd; cursor:pointer; text-align:left;" onclick="showAnswer(${i})">${q}</td>
-    `;
-    list.appendChild(row);
-  });
-}
-
-function showAnswer(i) {
-  const answerDisplay = document.getElementById('answerDisplay');
-  const answer = savedAnswers[i] || "답변이 등록되지 않았습니다.";
-  answerDisplay.textContent = `답변: ${answer}`;
-}
-
-function downloadSelectedExcel() {
-  let csv = "질문 번호,질문 내용,답변 내용\n";
-  document.querySelectorAll('.history-checkbox:checked').forEach(cb => {
-    const i = parseInt(cb.getAttribute('data-index'));
-    const q = savedQuestions[i] || "";
-    const a = savedAnswers[i] || "";
-    csv += `${i + 1},"${q.replace(/"/g, '""')}","${a.replace(/"/g, '""')}"\n`;
-  });
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement("a");
-  link.setAttribute("href", URL.createObjectURL(blob));
-  link.setAttribute("download", "문의히스토리_선택항목.csv");
-  link.style.display = 'none';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
-
-window.onload = () => {
-  let userId = localStorage.getItem('loggedInUser');
-  if (userId) userId = userId.toLowerCase();
-  if (userId && allowedIds.includes(userId)) {
-    savedQuestions = JSON.parse(localStorage.getItem('savedQuestions_' + userId)) || [];
-    savedAnswers = JSON.parse(localStorage.getItem('savedAnswers_' + userId)) || [];
-    showChatPage(userId);
-    if (userId === "danbi") {
-      document.getElementById('adminPage').style.display = 'block';
-      renderHistory(userId);
-    }
-  }
+  input.value = '';
 }
 </script>
 

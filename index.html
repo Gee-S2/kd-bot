@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>단비 챗봇</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
 
@@ -15,11 +15,173 @@
   <div class="error" id="errorMsg" style="color:red; margin-top:10px;"></div>
 </div>
 
-<!-- 전송 버튼 포함한 채팅 입력 영역 -->
-<div class="input-group" style="display:flex; gap:10px; align-items:center; margin-top:20px;">
-  <input type="text" id="userInput" placeholder="질문을 입력하세요" style="flex-grow:1; padding:10px; border:1px solid #ccc; border-radius:6px;" />
-  <button onclick="sendMessage()" style="background:#98DFFF; color:white; border:none; padding:10px 16px; border-radius:6px; white-space:nowrap;">전송</button>
+<!-- 채팅 화면 -->
+<div class="container" id="chatPage" style="display:none">
+  <h2>안녕하세요, <span id="userName"></span>님!</h2>
+  <div class="messages" id="messages">
+    <div>무엇을 도와드릴까요?</div>
+  </div>
+  <!-- 전송 버튼 포함한 채팅 입력 영역 -->
+  <div class="input-group" style="display:flex; gap:10px; align-items:center; margin-top:20px;">
+    <input type="text" id="userInput" placeholder="질문을 입력하세요" style="flex-grow:1; padding:10px; border:1px solid #ccc; border-radius:6px;" />
+    <button onclick="sendMessage()" style="background:#98DFFF; color:white; border:none; padding:10px 16px; border-radius:6px; white-space:nowrap;">전송</button>
+  </div>
 </div>
+
+<!-- 로그아웃 버튼 -->
+<div style="position: fixed; top: 10px; right: 10px;">
+  <button onclick="logout()" style="background:#1478FF; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">로그아웃</button>
+</div>
+
+<!-- 관리자 전용 메뉴: 문의 히스토리 -->
+<div class="container" id="adminPage" style="display:none">
+  <h2>문의 히스토리</h2>
+  <table style="width:100%; border-collapse:collapse;">
+    <thead>
+      <tr style="background:#f0f0f0">
+        <th style="padding:8px; border:1px solid #ddd;"><input type="checkbox" onclick="toggleAll(this)"></th>
+        <th style="padding:8px; border:1px solid #ddd;">번호</th>
+        <th style="padding:8px; border:1px solid #ddd; text-align:left;">질문 내용</th>
+      </tr>
+    </thead>
+    <tbody id="historyList"></tbody>
+  </table>
+  <button onclick="downloadSelectedExcel()" style="margin-top:10px; background:#98DFFF; color:white; border:none; padding:10px 16px; border-radius:6px;">선택 항목 엑셀 다운로드</button>
+  <div id="answerDisplay" style="margin-top:20px; font-style: italic; color: #555;"></div>
+</div>
+
+<script>
+const allowedIds = ["danbi", "testuser1", "helper123"];
+let savedQuestions = [];
+let savedAnswers = [];
+
+function logout() {
+  localStorage.removeItem('loggedInUser');
+  location.reload();
+}
+
+function toggleAll(master) {
+  const checkboxes = document.querySelectorAll('.history-checkbox');
+  checkboxes.forEach(cb => cb.checked = master.checked);
+}
+
+function login() {
+  const userId = document.getElementById('userId').value.trim().toLowerCase();
+  const errorMsg = document.getElementById('errorMsg');
+
+  if (allowedIds.includes(userId)) {
+    localStorage.setItem('loggedInUser', userId);
+    savedQuestions = JSON.parse(localStorage.getItem('savedQuestions_' + userId)) || [];
+    savedAnswers = JSON.parse(localStorage.getItem('savedAnswers_' + userId)) || [];
+    showChatPage(userId);
+
+    if (userId === "danbi") {
+      document.getElementById('adminPage').style.display = 'block';
+      renderHistory(userId);
+    }
+  } else {
+    errorMsg.textContent = "등록되지 않은 ID입니다.";
+  }
+}
+
+function showChatPage(userId) {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('chatPage').style.display = 'block';
+  document.getElementById('userName').textContent = userId;
+
+  const messages = document.getElementById('messages');
+  savedQuestions.forEach((q, i) => {
+    const msg = document.createElement('div');
+    msg.textContent = "사용자: " + q;
+    messages.appendChild(msg);
+    if (savedAnswers[i]) {
+      const res = document.createElement('div');
+      res.textContent = "답변: " + savedAnswers[i];
+      res.style.marginBottom = '10px';
+      res.style.color = '#444';
+      messages.appendChild(res);
+    }
+  });
+}
+
+function sendMessage() {
+  const input = document.getElementById('userInput');
+  const messages = document.getElementById('messages');
+  const userId = localStorage.getItem('loggedInUser');
+  if (input.value.trim()) {
+    const question = input.value.trim();
+    const message = document.createElement('div');
+    message.textContent = "사용자: " + question;
+    messages.appendChild(message);
+
+    const mockAnswer = "이 질문에 대한 답변은 준비 중입니다.";
+    const answer = document.createElement('div');
+    answer.textContent = "답변: " + mockAnswer;
+    answer.style.marginBottom = '10px';
+    answer.style.color = '#444';
+    messages.appendChild(answer);
+
+    savedQuestions.push(question);
+    savedAnswers.push(mockAnswer);
+    localStorage.setItem('savedQuestions_' + userId, JSON.stringify(savedQuestions));
+    localStorage.setItem('savedAnswers_' + userId, JSON.stringify(savedAnswers));
+    input.value = "";
+    if (userId === "danbi") renderHistory(userId);
+  }
+}
+
+function renderHistory(userId) {
+  const list = document.getElementById('historyList');
+  list.innerHTML = "";
+  savedQuestions.forEach((q, i) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td style="padding:8px; border:1px solid #ddd;"><input type="checkbox" class="history-checkbox" data-index="${i}"></td>
+      <td style="padding:8px; border:1px solid #ddd; text-align:center;">${i + 1}</td>
+      <td style="padding:8px; border:1px solid #ddd; cursor:pointer; text-align:left;" onclick="showAnswer(${i})">${q}</td>
+    `;
+    list.appendChild(row);
+  });
+}
+
+function showAnswer(i) {
+  const answerDisplay = document.getElementById('answerDisplay');
+  const answer = savedAnswers[i] || "답변이 등록되지 않았습니다.";
+  answerDisplay.textContent = `답변: ${answer}`;
+}
+
+function downloadSelectedExcel() {
+  let csv = "질문 번호,질문 내용,답변 내용\n";
+  document.querySelectorAll('.history-checkbox:checked').forEach(cb => {
+    const i = parseInt(cb.getAttribute('data-index'));
+    const q = savedQuestions[i] || "";
+    const a = savedAnswers[i] || "";
+    csv += `${i + 1},"${q.replace(/"/g, '""')}","${a.replace(/"/g, '""')}"\n`;
+  });
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement("a");
+  link.setAttribute("href", URL.createObjectURL(blob));
+  link.setAttribute("download", "문의히스토리_선택항목.csv");
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+window.onload = () => {
+  let userId = localStorage.getItem('loggedInUser');
+  if (userId) userId = userId.toLowerCase();
+  if (userId && allowedIds.includes(userId)) {
+    savedQuestions = JSON.parse(localStorage.getItem('savedQuestions_' + userId)) || [];
+    savedAnswers = JSON.parse(localStorage.getItem('savedAnswers_' + userId)) || [];
+    showChatPage(userId);
+    if (userId === "danbi") {
+      document.getElementById('adminPage').style.display = 'block';
+      renderHistory(userId);
+    }
+  }
+}
+</script>
 
 </body>
 </html>

@@ -5,15 +5,58 @@
   <title>단비 챗봇</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: sans-serif; }
-    #loginPage, #chatPage, #historyPage {
+    body { margin: 0; font-family: Arial, sans-serif; }
+    input, button, textarea {
+      padding: 10px;
+      margin: 5px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    #loginPage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    #errorMsg { color: red; }
+    #historyBtn {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: #FAAB23;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      display: none;
+    }
+    #logoutBtn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: #1478FF;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      display: none;
+    }
+    #chatPage, #historyPage {
+      padding: 20px;
       display: none;
     }
     .messages {
       display: flex;
       flex-direction: column;
       gap: 10px;
-      padding: 20px;
+      max-height: 300px;
+      overflow-y: auto;
+      margin-bottom: 10px;
     }
     .message {
       max-width: 60%;
@@ -21,111 +64,159 @@
       border-radius: 16px;
       font-size: 14px;
       line-height: 1.4;
+      white-space: pre-wrap;
     }
     .user { background-color: #E2F0FC; align-self: flex-end; }
     .bot { background-color: #8AB8F2; align-self: flex-start; }
+    #sendBtn {
+      background-color: #98DFFF;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background-color: #f4f4f4; }
   </style>
 </head>
 <body>
 
-<div id="loginPage" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh;">
+<div id="loginPage">
   <h2>단비 상담 챗봇</h2>
-  <input type="text" id="userId" placeholder="ID를 입력하세요" style="padding:8px; margin-bottom:10px;">
+  <input type="text" id="userId" placeholder="ID를 입력하세요" />
   <button onclick="login()">로그인</button>
-  <div id="errorMsg" style="color:red;"></div>
+  <div id="errorMsg"></div>
 </div>
+
+<button id="historyBtn" onclick="showHistory()">History</button>
+<button id="logoutBtn" onclick="logout()">로그아웃</button>
 
 <div id="chatPage">
   <h2 style="text-align:center;">안녕하세요, <span id="userName"></span>님!</h2>
   <div class="messages" id="messages">
     <div class="message bot">무엇을 도와드릴까요?</div>
   </div>
-  <textarea id="userInput" style="width: 100%; height: 60px;"></textarea>
-  <button onclick="sendMessage()">전송</button>
+  <textarea id="userInput" rows="3" style="width: 100%;"></textarea>
+  <button id="sendBtn" onclick="sendMessage()">전송</button>
+</div>
+
+<div id="historyPage">
+  <h2>📋 문의 히스토리</h2>
+  <button onclick="goBackToChat()">← 뒤로가기</button>
+  <table>
+    <thead>
+      <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>번호</th><th>질문</th><th>답변</th></tr>
+    </thead>
+    <tbody id="historyTableBody"></tbody>
+  </table>
+  <button onclick="downloadSelectedExcel()" style="background:#98DFFF; color:white;">선택 항목 엑셀 다운로드</button>
 </div>
 
 <script>
-const knowledge = [
-  { text: "렌털은 만 20세~79세까지 가능 (2006~1946년생 기준)", embedding: null },
-  { text: "케어멤버십은 20세 이상이면 나이 제한 없음", embedding: null },
-  { text: "프로모션 제품은 최대 20개까지 한 번에 주문 가능", embedding: null },
-  { text: "비대면 주문 URL은 자정 전 23:59까지 발송 가능", embedding: null }
-];
-
-async function fetchEmbedding(text, apiKey) {
-  const res = await fetch("https://api.openai.com/v1/embeddings", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ model: "text-embedding-3-small", input: text })
-  });
-  const data = await res.json();
-  return data.data[0].embedding;
-}
-
-function cosineSimilarity(a, b) {
-  const dot = a.reduce((sum, val, i) => sum + val * b[i], 0);
-  const normA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
-  const normB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
-  return dot / (normA * normB);
-}
-
 function login() {
   const id = document.getElementById("userId").value.trim().toLowerCase();
-  if (["danbi", "testuser1", "helper123"].includes(id)) {
+  const allowed = ["danbi", "testuser1", "helper123"];
+  const errorMsg = document.getElementById("errorMsg");
+  if (allowed.includes(id)) {
     localStorage.setItem("loggedInUser", id);
-    document.getElementById("userName").textContent = id;
     document.getElementById("loginPage").style.display = "none";
     document.getElementById("chatPage").style.display = "block";
+    document.getElementById("userName").textContent = id;
+    document.getElementById("logoutBtn").style.display = "block";
+    if (id === "danbi") document.getElementById("historyBtn").style.display = "block";
   } else {
-    document.getElementById("errorMsg").textContent = "등록되지 않은 ID입니다.";
+    errorMsg.textContent = "등록되지 않은 ID입니다.";
   }
 }
 
-async function sendMessage() {
-  const input = document.getElementById("userInput");
-  const messages = document.getElementById("messages");
-  const question = input.value.trim();
-  if (!question) return;
+function logout() {
+  localStorage.removeItem("loggedInUser");
+  location.reload();
+}
 
+function sendMessage() {
+  const input = document.getElementById("userInput");
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  const messages = document.getElementById("messages");
   const userBubble = document.createElement("div");
   userBubble.className = "message user";
-  userBubble.innerHTML = question.replace(/\n/g, "<br>");
+  userBubble.textContent = msg;
   messages.appendChild(userBubble);
 
-  const apiKey = prompt("OpenAI API 키를 입력하세요:");
-  if (!apiKey) return;
-
-  const qEmbed = await fetchEmbedding(question, apiKey);
-  for (let item of knowledge) {
-    if (!item.embedding) {
-      item.embedding = await fetchEmbedding(item.text, apiKey);
-    }
-  }
-
-  let bestMatch = null;
-  let bestScore = -1;
-  for (let item of knowledge) {
-    const sim = cosineSimilarity(qEmbed, item.embedding);
-    if (sim > bestScore) {
-      bestScore = sim;
-      bestMatch = item.text;
-    }
-  }
-
+  const botReply = "답변을 준비 중이에요!";
   const botBubble = document.createElement("div");
   botBubble.className = "message bot";
-  botBubble.innerHTML = bestMatch.replace(/\n/g, "<br>");
+  botBubble.textContent = botReply;
   messages.appendChild(botBubble);
 
-  input.value = '';
+  input.value = "";
+  messages.scrollTop = messages.scrollHeight;
+
+  const userId = localStorage.getItem("loggedInUser");
+  const savedQ = JSON.parse(localStorage.getItem("savedQuestions_" + userId)) || [];
+  const savedA = JSON.parse(localStorage.getItem("savedAnswers_" + userId)) || [];
+  savedQ.push(msg);
+  savedA.push(botReply);
+  localStorage.setItem("savedQuestions_" + userId, JSON.stringify(savedQ));
+  localStorage.setItem("savedAnswers_" + userId, JSON.stringify(savedA));
 }
 
-window.onload = () => {
-  document.getElementById("loginPage").style.display = "flex";
+document.getElementById("userInput").addEventListener("keydown", function(e) {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+function showHistory() {
+  document.getElementById("chatPage").style.display = "none";
+  document.getElementById("historyPage").style.display = "block";
+
+  const userId = localStorage.getItem("loggedInUser");
+  const questions = JSON.parse(localStorage.getItem("savedQuestions_" + userId)) || [];
+  const answers = JSON.parse(localStorage.getItem("savedAnswers_" + userId)) || [];
+
+  const table = document.getElementById("historyTableBody");
+  table.innerHTML = "";
+  questions.forEach((q, i) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `<td><input type="checkbox" class="history-checkbox" data-index="${i}"></td><td>${i + 1}</td><td>${q}</td><td>${answers[i]}</td>`;
+    table.appendChild(row);
+  });
+}
+
+function goBackToChat() {
+  document.getElementById("historyPage").style.display = "none";
+  document.getElementById("chatPage").style.display = "block";
+}
+
+function toggleAll(master) {
+  const checkboxes = document.querySelectorAll(".history-checkbox");
+  checkboxes.forEach(cb => cb.checked = master.checked);
+}
+
+function downloadSelectedExcel() {
+  const userId = localStorage.getItem("loggedInUser");
+  const questions = JSON.parse(localStorage.getItem("savedQuestions_" + userId)) || [];
+  const answers = JSON.parse(localStorage.getItem("savedAnswers_" + userId)) || [];
+
+  let csv = "번호,질문,답변\n";
+  document.querySelectorAll(".history-checkbox:checked").forEach(cb => {
+    const i = parseInt(cb.getAttribute("data-index"));
+    csv += `${i + 1},"${questions[i]}","${answers[i]}"\n`;
+  });
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "문의_히스토리.csv";
+  link.click();
 }
 </script>
+
 </body>
 </html>

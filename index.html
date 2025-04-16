@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>단비 상담 챗봇</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f2f2f2; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto; padding: 20px; background: #fff; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    h2 { text-align: center; }
+    input[type="text"] { width: 100%; padding: 10px; margin: 10px 0; border-radius: 6px; border: 1px solid #ccc; }
+    button { padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    .messages { margin: 20px 0; border: 1px solid #ddd; padding: 10px; border-radius: 6px; background: #fafafa; min-height: 100px; }
+    .input-group { display: flex; gap: 10px; }
+    .input-group input { flex-grow: 1; }
+    #adminPage { margin-top: 30px; }
+    ul { padding-left: 20px; }
+    li { margin: 5px 0; }
+  </style>
+</head>
+<body>
+
+<div class="container" id="loginPage">
+  <h2>단비 상담 챗봇</h2>
+  <input type="text" id="userId" placeholder="ID를 입력하세요" />
+  <button onclick="login()">로그인</button>
+  <div class="error" id="errorMsg" style="color:red; margin-top:10px;"></div>
+</div>
+
+<div class="container" id="chatPage" style="display:none">
+  <h2>안녕하세요, <span id="userName"></span>님!</h2>
+  <div class="messages" id="messages">
+    <div>무엇을 도와드릴까요?</div>
+  </div>
+  <div class="input-group">
+    <input type="text" id="userInput" placeholder="질문을 입력하세요" />
+    <button onclick="sendMessage()">전송</button>
+  </div>
+</div>
+
+<div class="container" id="adminPage" style="display:none">
+  <h2>문의 히스토리</h2>
+  <ul id="historyList"></ul>
+  <button onclick="downloadExcel()">엑셀로 다운로드</button>
+  <div id="answerDisplay" style="margin-top:20px; font-style: italic; color: #555;"></div>
+</div>
+
+<script>
+  const allowedIds = ["danbi", "testuser1", "helper123"];
+  let savedQuestions = [];
+  let savedAnswers = [];
+
+  function login() {
+    const userId = document.getElementById('userId').value.trim().toLowerCase();
+    const errorMsg = document.getElementById('errorMsg');
+
+    if (allowedIds.includes(userId)) {
+      localStorage.setItem('loggedInUser', userId);
+      savedQuestions = JSON.parse(localStorage.getItem('savedQuestions_' + userId)) || [];
+      savedAnswers = JSON.parse(localStorage.getItem('savedAnswers_' + userId)) || [];
+      showChatPage(userId);
+
+      if (userId === "danbi") {
+        document.getElementById('adminPage').style.display = 'block';
+        renderHistory(userId);
+      }
+    } else {
+      errorMsg.textContent = "등록되지 않은 ID입니다.";
+    }
+  }
+
+  function showChatPage(userId) {
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('chatPage').style.display = 'block';
+    document.getElementById('userName').textContent = userId;
+
+    const messages = document.getElementById('messages');
+    savedQuestions.forEach((q, i) => {
+      const msg = document.createElement('div');
+      msg.textContent = "사용자: " + q;
+      messages.appendChild(msg);
+      if (savedAnswers[i]) {
+        const res = document.createElement('div');
+        res.textContent = "답변: " + savedAnswers[i];
+        res.style.marginBottom = '10px';
+        res.style.color = '#444';
+        messages.appendChild(res);
+      }
+    });
+  }
+
+  function sendMessage() {
+    const input = document.getElementById('userInput');
+    const messages = document.getElementById('messages');
+    const userId = localStorage.getItem('loggedInUser');
+    if (input.value.trim()) {
+      const question = input.value.trim();
+      const message = document.createElement('div');
+      message.textContent = "사용자: " + question;
+      messages.appendChild(message);
+
+      const mockAnswer = "이 질문에 대한 답변은 준비 중입니다.";
+      const answer = document.createElement('div');
+      answer.textContent = "답변: " + mockAnswer;
+      answer.style.marginBottom = '10px';
+      answer.style.color = '#444';
+      messages.appendChild(answer);
+
+      savedQuestions.push(question);
+      savedAnswers.push(mockAnswer);
+      localStorage.setItem('savedQuestions_' + userId, JSON.stringify(savedQuestions));
+      localStorage.setItem('savedAnswers_' + userId, JSON.stringify(savedAnswers));
+      input.value = "";
+      if (userId === "danbi") renderHistory(userId);
+    }
+  }
+
+  function renderHistory(userId) {
+    const list = document.getElementById('historyList');
+    list.innerHTML = "";
+    savedQuestions.forEach((q, i) => {
+      const item = document.createElement('li');
+      item.textContent = `${i + 1}. ${q}`;
+      item.style.cursor = 'pointer';
+      item.onclick = () => {
+        const answerDisplay = document.getElementById('answerDisplay');
+        const answer = savedAnswers[i] || "답변이 등록되지 않았습니다.";
+        answerDisplay.textContent = `답변: ${answer}`;
+      };
+      list.appendChild(item);
+    });
+  }
+
+  function downloadExcel() {
+    let csv = "질문 번호,질문 내용,답변 내용\n";
+    savedQuestions.forEach((q, i) => {
+      const a = savedAnswers[i] || "";
+      csv += `${i + 1},"${q.replace(/"/g, '""')}","${a.replace(/"/g, '""')}"\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.setAttribute("href", URL.createObjectURL(blob));
+    link.setAttribute("download", "문의히스토리.csv");
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  window.onload = () => {
+    let userId = localStorage.getItem('loggedInUser');
+    if (userId) userId = userId.toLowerCase();
+    if (userId && allowedIds.includes(userId)) {
+      savedQuestions = JSON.parse(localStorage.getItem('savedQuestions_' + userId)) || [];
+      savedAnswers = JSON.parse(localStorage.getItem('savedAnswers_' + userId)) || [];
+      showChatPage(userId);
+      if (userId === "danbi") {
+        document.getElementById('adminPage').style.display = 'block';
+        renderHistory(userId);
+      }
+    }
+  }
+</script>
+
+</body>
+</html>

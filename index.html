@@ -1,12 +1,82 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>단비 챗봇</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: sans-serif; }
+    #loginPage, #chatPage, #historyPage { display: none; }
+    .messages {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 20px;
+      border: 1px solid black;
+      border-radius: 10px;
+      margin: 10px;
+      height: 300px;
+      overflow-y: auto;
+    }
+    .message {
+      max-width: 60%;
+      padding: 10px 15px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    .user { background-color: #E2F0FC; align-self: flex-end; }
+    .bot { background-color: #8AB8F2; align-self: flex-start; }
+  </style>
 </head>
 <body>
-  <h2>안녕하세요, 경동 RMS 도우미 입니다. 무엇을 도와드릴까요?</h2>
-  <!-- 여기에 이전 추가사항1 반영된 전체 코드가 들어감 -->
+
+<!-- 로그인 페이지 -->
+<div id="loginPage" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh;">
+  <h2>단비 상담 챗봇</h2>
+  <input type="text" id="userId" placeholder="ID를 입력하세요" style="margin-bottom:10px; padding:8px;" />
+  <button onclick="login()" style="background:#1478FF; color:white; border:none; padding:8px 16px; border-radius:6px;">로그인</button>
+</div>
+
+<!-- 챗봇 페이지 -->
+<div id="chatPage" style="display:none;">
+  <h2 style="text-align:center;">안녕하세요, <span id="userName"></span>님!</h2>
+  <div class="messages" id="messages"></div>
+  <div style="display:flex; gap:10px; align-items:center;">
+    <textarea id="userInput" style="flex-grow:1;"></textarea>
+    <button onclick="sendMessage()" style="background:#98DFFF; color:white; padding:10px 16px;">전송</button>
+  </div>
+</div>
+
+<script>
+function login() {
+  const userId = document.getElementById('userId').value.trim();
+  if (!userId) return;
+  localStorage.setItem('loggedInUser', userId);
+  document.getElementById('userName').textContent = userId;
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('chatPage').style.display = 'block';
+  
+  // 첫 인사 말풍선
+  const messages = document.getElementById('messages');
+  const greeting = document.createElement('div');
+  greeting.className = 'message bot';
+  greeting.textContent = '안녕하세요, 경동 RMS 도우미 입니다. 무엇을 도와드릴까요?';
+  messages.appendChild(greeting);
+}
+
+function sendMessage() {
+  const input = document.getElementById('userInput');
+  const text = input.value.trim();
+  if (!text) return;
+  const messages = document.getElementById('messages');
+  const userMsg = document.createElement('div');
+  userMsg.className = 'message user';
+  userMsg.textContent = text;
+  messages.appendChild(userMsg);
+  input.value = '';
+}
+</script>
+
 </body>
 </html>

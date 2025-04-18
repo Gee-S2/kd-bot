@@ -1,14 +1,36 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>단비 챗봇 - 로그인 수정</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <title>단비 챗봇</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <style>
-    body { font-family: sans-serif; }
+    body { font-family: sans-serif; margin: 0; }
     #loginPage, #chatPage, #historyPage { display: none; }
-    input, textarea {
+    .message-box {
+      border: 1px solid black;
+      border-radius: 10px;
+      padding: 10px;
+      height: 400px;
+      overflow-y: auto;
+      margin-bottom: 10px;
+    }
+    .message {
+      max-width: 60%;
+      padding: 10px 15px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+    }
+    .user { background-color: #E2F0FC; align-self: flex-end; }
+    .bot { background-color: #8AB8F2; align-self: flex-start; }
+    textarea {
+      width: 100%;
+      height: 60px;
+      resize: none;
+      border-radius: 6px;
+      padding: 10px;
       font-family: inherit;
     }
     button {
@@ -19,53 +41,221 @@
     }
     .blue-btn { background: #1478FF; color: white; }
     .sky-btn { background: #98DFFF; color: white; }
+    #historyButton {
+      position: fixed;
+      top: 10px;
+      left: 100px;
+      background: #FAAB23;
+      color: white;
+      font-weight: bold;
+      display: none;
+    }
+    #backButton {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: black;
+      color: white;
+      font-weight: bold;
+    }
+    #logoutButton {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: #1478FF;
+      color: white;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
 
+<!-- 버튼 영역 -->
+<button id="backButton" onclick="goBackToChat()">← Back</button>
+<button id="historyButton" onclick="showHistoryPage()">History</button>
+<button id="logoutButton" onclick="logout()">로그아웃</button>
+
 <!-- 로그인 화면 -->
-<div id="loginPage" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh;">
+<div id="loginPage" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh;">
   <h2>단비 상담 챗봇</h2>
-  <input type="text" id="userId" placeholder="ID를 입력하세요" style="margin-bottom: 10px; padding: 8px;" />
+  <input type="text" id="userId" placeholder="ID를 입력하세요" style="margin-bottom:10px; padding:8px;" />
   <button onclick="login()" class="blue-btn">로그인</button>
-  <div id="errorMsg" style="color: red; margin-top: 10px;"></div>
+  <div id="errorMsg" style="color:red; margin-top:10px;"></div>
 </div>
 
-<!-- 챗봇 화면 -->
-<div id="chatPage" style="display: none; padding: 20px;">
-  <h2 style="text-align: center;">안녕하세요, <span id="userName"></span>님!</h2>
-  <div class="messages" id="messages">
-    <div class="message bot">안녕하세요, 경동 RMS 도우미 입니다. 무엇을 도와드릴까요?</div>
+<!-- 채팅 화면 -->
+<div id="chatPage" style="padding:20px;">
+  <h2 style="text-align:center;">안녕하세요, <span id="userName"></span>님!</h2>
+  <div class="message-box" id="messages"></div>
+  <div style="display: flex; gap: 10px;">
+    <textarea id="userInput" placeholder="질문을 입력하세요..."></textarea>
+    <button class="sky-btn" onclick="sendMessage()">전송</button>
   </div>
+</div>
+
+<!-- 히스토리 화면 -->
+<div id="historyPage" style="padding: 20px;">
+  <table>
+    <thead>
+      <tr>
+        <th><input type="checkbox" onclick="toggleAll(this)"></th>
+        <th>번호</th>
+        <th>질문</th>
+        <th>답변</th>
+      </tr>
+    </thead>
+    <tbody id="historyTableBody"></tbody>
+  </table>
+  <button onclick="downloadSelectedExcel()" class="sky-btn" style="margin-top: 10px;">선택 항목 엑셀 다운로드</button>
 </div>
 
 <script>
 function login() {
   const userId = document.getElementById("userId").value.trim().toLowerCase();
-  const allowedIds = ["danbi", "testuser1", "helper123"];
+  const allowed = ["danbi", "testuser1", "helper123"];
   const errorMsg = document.getElementById("errorMsg");
 
-  if (allowedIds.includes(userId)) {
+  if (allowed.includes(userId)) {
     localStorage.setItem("loggedInUser", userId);
     document.getElementById("userName").textContent = userId;
     document.getElementById("loginPage").style.display = "none";
     document.getElementById("chatPage").style.display = "block";
+    if (userId === "danbi") {
+      document.getElementById("historyButton").style.display = "block";
+    }
+    loadSavedMessages(userId);
   } else {
     errorMsg.textContent = "등록되지 않은 ID입니다.";
   }
 }
 
+function logout() {
+  localStorage.removeItem("loggedInUser");
+  location.reload();
+}
+
+function sendMessage() {
+  const input = document.getElementById("userInput");
+  const text = input.value.trim();
+  if (!text) return;
+  const userId = localStorage.getItem("loggedInUser");
+
+  const userDiv = document.createElement("div");
+  userDiv.className = "message user";
+  userDiv.textContent = text;
+  document.getElementById("messages").appendChild(userDiv);
+
+  const botDiv = document.createElement("div");
+  botDiv.className = "message bot";
+  botDiv.textContent = "이 기능은 현재 비활성화되어 있습니다.";
+  document.getElementById("messages").appendChild(botDiv);
+
+  input.value = "";
+  document.getElementById("messages").scrollTop = document.getElementById("messages").scrollHeight;
+
+  let qKey = "savedQuestions_" + userId;
+  let aKey = "savedAnswers_" + userId;
+
+  let qArr = JSON.parse(localStorage.getItem(qKey) || "[]");
+  let aArr = JSON.parse(localStorage.getItem(aKey) || "[]");
+  qArr.push(text);
+  aArr.push(botDiv.textContent);
+  localStorage.setItem(qKey, JSON.stringify(qArr));
+  localStorage.setItem(aKey, JSON.stringify(aArr));
+}
+
+function showHistoryPage() {
+  document.getElementById("chatPage").style.display = "none";
+  document.getElementById("historyPage").style.display = "block";
+
+  const table = document.getElementById("historyTableBody");
+  table.innerHTML = "";
+
+  const allKeys = Object.keys(localStorage).filter(k => k.startsWith("savedQuestions_"));
+  allKeys.forEach(key => {
+    const userId = key.replace("savedQuestions_", "");
+    const questions = JSON.parse(localStorage.getItem(key) || "[]");
+    const answers = JSON.parse(localStorage.getItem("savedAnswers_" + userId) || "[]");
+    questions.forEach((q, i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td><input type="checkbox" class="history-checkbox" data-index="${i}" data-user="${userId}"></td><td>${i + 1}</td><td>${q}</td><td>${answers[i] || ""}</td>`;
+      table.appendChild(tr);
+    });
+  });
+}
+
+function goBackToChat() {
+  document.getElementById("historyPage").style.display = "none";
+  document.getElementById("chatPage").style.display = "block";
+}
+
+function toggleAll(master) {
+  const checks = document.querySelectorAll(".history-checkbox");
+  checks.forEach(cb => cb.checked = master.checked);
+}
+
+function downloadSelectedExcel() {
+  const checks = document.querySelectorAll(".history-checkbox:checked");
+  let csv = "번호,질문,답변
+";
+  checks.forEach(cb => {
+    const i = cb.getAttribute("data-index");
+    const user = cb.getAttribute("data-user");
+    const q = JSON.parse(localStorage.getItem("savedQuestions_" + user))[i];
+    const a = JSON.parse(localStorage.getItem("savedAnswers_" + user))[i];
+    csv += `${parseInt(i)+1},"${q}","${a}"
+`;
+  });
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "문의히스토리_선택항목.csv";
+  link.click();
+}
+
+function loadSavedMessages(userId) {
+  const messages = document.getElementById("messages");
+  const q = JSON.parse(localStorage.getItem("savedQuestions_" + userId) || "[]");
+  const a = JSON.parse(localStorage.getItem("savedAnswers_" + userId) || "[]");
+  messages.innerHTML = "";
+  q.forEach((question, i) => {
+    const userDiv = document.createElement("div");
+    userDiv.className = "message user";
+    userDiv.textContent = question;
+    const botDiv = document.createElement("div");
+    botDiv.className = "message bot";
+    botDiv.textContent = a[i];
+    messages.appendChild(userDiv);
+    messages.appendChild(botDiv);
+  });
+  messages.scrollTop = messages.scrollHeight;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("loginPage").style.display = "flex";
-
   document.getElementById("userId").addEventListener("keydown", function(e) {
     if (e.key === "Enter") {
       e.preventDefault();
       login();
     }
   });
+  document.getElementById("userInput").addEventListener("keydown", function(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
 });
 </script>
-
 </body>
 </html>
